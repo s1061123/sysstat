@@ -123,7 +123,7 @@
 								printf("      TGID       TID");	\
 							}					\
 							else {					\
-								printf("       PID");		\
+								printf("       PID      PPID");	\
 							}					\
 						} while (0)
 
@@ -187,6 +187,7 @@ struct pid_stats {
 	unsigned long      stack_ref			__attribute__ ((packed));
 	/* If pid is null, the process has terminated */
 	unsigned int       pid				__attribute__ ((packed));
+	unsigned int       ppid				__attribute__ ((packed));
 	/* If tgid is not null, then this PID is in fact a TID */
 	unsigned int       tgid				__attribute__ ((packed));
 	unsigned int       rt_asum_count		__attribute__ ((packed));

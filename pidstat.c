@@ -60,6 +60,7 @@ char commstr[MAX_COMM_LEN];
 char userstr[MAX_USER_LEN];
 char procstr[MAX_COMM_LEN];
 int show_threads = FALSE;
+int xxx_check_pid = -1;
 
 unsigned int pid_nr = 0;	/* Nb of PID to display */
 unsigned int pid_array_nr = 0;
@@ -384,10 +385,11 @@ int read_proc_pid_stat(unsigned int pid, struct pid_stats *pst,
 	start = end + 2;
 
 	rc = sscanf(start,
-		    "%*s %*d %*d %*d %*d %*d %*u %llu %llu"
+		    "%*s %d %*d %*d %*d %*d %*u %llu %llu"
 		    " %llu %llu %llu %llu %lld %lld %*d %*d %u %*u %*d %llu %llu"
 		    " %*u %*u %*u %*u %*u %*u %*u %*u %*u %*u %*u %*u %*u"
 		    " %*u %u %u %u %llu %llu %lld\n",
+                    &pst->ppid,
 		    &pst->minflt, &pst->cminflt, &pst->majflt, &pst->cmajflt,
 		    &pst->utime,  &pst->stime, &pst->cutime, &pst->cstime,
 		    thread_nr, &pst->vsz, &pst->rss, &pst->processor,
@@ -1351,7 +1353,8 @@ void __print_line_id(struct pid_stats *pst, char c)
 		}
 	}
 	else {
-		strcpy(format, " %9u");
+		/* strcpy(format, " %9u"); */
+		sprintf(format, " %%9u %9u", pst->ppid);
 	}
 
 	cprintf_in(IS_INT, format, "", pst->pid);
@@ -1631,6 +1634,7 @@ int write_pid_task_cpu_stats(int prev, int curr, int dis, int disp_avg,
 	struct pid_stats *pstc, *pstp;
 	unsigned int p;
 	int again = 0;
+        unsigned long long u_total = 0, s_totoal = 0, g_total = 0, w_total = 0, cpu_total = 0;
 
 	if (dis) {
 		PRINT_ID_HDR(prev_string, pidflag);
@@ -1642,6 +1646,13 @@ int write_pid_task_cpu_stats(int prev, int curr, int dis, int disp_avg,
 		if (get_pid_to_display(prev, curr, p, P_A_CPU, P_TASK,
 				       &pstc, &pstp) <= 0)
 			continue;
+                //XXX
+                if (xxx_check_pid != -1) {
+                    if (xxx_check_pid != pstc->pid && xxx_check_pid != pstc->ppid) {
+                        continue;
+                    }
+                }
+
 
 		print_line_id(curr_string, pstc);
 		cprintf_pc(5, 7, 2,
@@ -1659,6 +1670,18 @@ int write_pid_task_cpu_stats(int prev, int curr, int dis, int disp_avg,
 			   SP_VALUE_100(pstp->utime + pstp->stime,
 				    pstc->utime + pstc->stime, itv));
 
+                u_total += (pstc->utime - pstc->gtime) < (pstp->utime - pstp->gtime) ?
+			   0.0 :
+			   SP_VALUE_100(pstp->utime - pstp->gtime,
+				    pstc->utime - pstc->gtime, itv);
+                s_totoal += SP_VALUE_100(pstp->stime, pstc->stime, itv);
+                g_total += SP_VALUE_100(pstp->gtime, pstc->gtime, itv);
+                w_total += SP_VALUE_100(pstp->wtime, pstc->wtime, itv);
+                cpu_total += IRIX_MODE_OFF(pidflag) ?
+                           SP_VALUE_100(pstp->utime + pstp->stime,
+                                    pstc->utime + pstc->stime, g_itv) :
+                           SP_VALUE_100(pstp->utime + pstp->stime,
+                                    pstc->utime + pstc->stime, itv);
 		if (!disp_avg) {
 			cprintf_in(IS_INT, "   %3d", "", pstc->processor);
 		}
@@ -1668,6 +1691,9 @@ int write_pid_task_cpu_stats(int prev, int curr, int dis, int disp_avg,
 		print_comm(pstc);
 		again = 1;
 	}
+	printf("%-11s %25s", curr_string, "Total");
+	cprintf_pc(5, 7, 2, u_total, s_totoal, g_total, w_total, cpu_total);
+        printf("\n");
 
 	return again;
 }
@@ -2655,6 +2681,13 @@ int main(int argc, char **argv)
 				usage(argv[0]);
 			}
 		}
+
+		else if (!strcmp(argv[opt], "-P")) {
+			if (argv[++opt]) {
+                                xxx_check_pid = atoi(argv[opt]);
+				opt++;
+                        }
+                }
 
 		else if (!strcmp(argv[opt], "--human")) {
 			pidflag |= P_D_UNIT;
