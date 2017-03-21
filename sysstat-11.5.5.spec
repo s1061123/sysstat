@@ -70,7 +70,7 @@ rm -rf $RPM_BUILD_ROOT
 %attr(755,root,root) %{_bindir}/*
 %attr(755,root,root) %{_libdir}/sa/*
 %attr(644,root,root) %{_mandir}/man*/*
-%attr(644,root,root) %{_datadir}/locale/*/LC_MESSAGES/sysstat.mo
+%exclude %{_datadir}/locale/*/LC_MESSAGES/sysstat.mo
 %attr(755,root,root) %dir /var/log/sa
 %attr(755,root,root) /etc/rc.d/init.d/sysstat
 %attr(644,root,root) /etc/sysconfig/sysstat
