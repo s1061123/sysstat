@@ -1401,6 +1401,13 @@ int write_pid_task_all_stats(int prev, int curr, int dis,
 	char dstr[32];
 	unsigned int p;
 	int again = 0;
+        double u_total = 0.0, s_totoal = 0.0, g_total = 0.0, w_total = 0.0, cpu_total = 0.0;
+        double t_minflt = 0.0, t_majflt = 0.0;
+        unsigned long long t_mem = 0;
+        double t_rd = 0.0, t_wr = 0.0, t_cwr = 0.0;
+        unsigned long long t_delay = 0;
+	double rbytes = 0.0, wbytes = 0.0, cbytes = 0.0;
+        double t_nvcsw = 0.0, t_nivcsw = 0.0;
 
 	if (dis) {
 		PRINT_ID_HDR("#      Time", pidflag);
@@ -1433,6 +1440,12 @@ int write_pid_task_all_stats(int prev, int curr, int dis,
 		if (get_pid_to_display(prev, curr, p, actflag, P_TASK,
 				       &pstc, &pstp) <= 0)
 			continue;
+                //XXX
+                if (xxx_check_pid != -1) {
+                    if (xxx_check_pid != pstc->pid && xxx_check_pid != pstc->ppid) {
+                        continue;
+                    }
+                }
 
 		printf("%11ld", (long) time(NULL));
 		__print_line_id(pstc, '0');
@@ -1455,6 +1468,18 @@ int write_pid_task_all_stats(int prev, int curr, int dis,
 
 			cprintf_in(IS_INT, "   %3d", "", pstc->processor);
 		}
+                u_total += (pstc->utime - pstc->gtime) < (pstp->utime - pstp->gtime) ?
+			   0.0 :
+			   SP_VALUE_100(pstp->utime - pstp->gtime,
+				    pstc->utime - pstc->gtime, itv);
+                s_totoal += SP_VALUE_100(pstp->stime, pstc->stime, itv);
+                g_total += SP_VALUE_100(pstp->gtime, pstc->gtime, itv);
+                w_total += SP_VALUE_100(pstp->wtime, pstc->wtime, itv);
+                cpu_total += IRIX_MODE_OFF(pidflag) ?
+                           SP_VALUE_100(pstp->utime + pstp->stime,
+                                    pstc->utime + pstc->stime, g_itv) :
+                           SP_VALUE_100(pstp->utime + pstp->stime,
+                                    pstc->utime + pstc->stime, itv);
 
 		if (DISPLAY_MEM(actflag)) {
 			cprintf_f(-1, 2, 9, 2,
@@ -1466,6 +1491,9 @@ int write_pid_task_all_stats(int prev, int curr, int dis,
 			cprintf_pc(1, 6, 2,
 				   tlmkb ? SP_VALUE(0, pstc->rss, tlmkb) : 0.0);
 		}
+                t_minflt += S_VALUE(pstp->minflt, pstc->minflt, itv);
+                t_majflt += S_VALUE(pstp->majflt, pstc->majflt, itv);
+                t_mem += tlmkb ? SP_VALUE(0, pstc->rss, tlmkb) : 0.0;
 
 		if (DISPLAY_STACK(actflag)) {
 			cprintf_u64(DISPLAY_UNIT(pidflag) ? 2 : -1, 2, 7,
@@ -1476,7 +1504,6 @@ int write_pid_task_all_stats(int prev, int curr, int dis,
 		if (DISPLAY_IO(actflag)) {
 			if (!NO_PID_IO(pstc->flags))
 			{
-				double rbytes, wbytes, cbytes;
 
 				rbytes = S_VALUE(pstp->read_bytes,  pstc->read_bytes, itv);
 				wbytes = S_VALUE(pstp->write_bytes, pstc->write_bytes, itv);
@@ -1502,12 +1529,19 @@ int write_pid_task_all_stats(int prev, int curr, int dis,
 			cprintf_u64(-1, 1, 7,
 				    (unsigned long long) (pstc->blkio_swapin_delays - pstp->blkio_swapin_delays));
 		}
+                t_rd += rbytes;
+                t_wr += wbytes;
+                t_cwr += cbytes;
+                t_delay += (unsigned long long) (pstc->blkio_swapin_delays - pstp->blkio_swapin_delays);
 
 		if (DISPLAY_CTXSW(actflag)) {
 			cprintf_f(-1, 2, 9, 2,
 				  S_VALUE(pstp->nvcsw, pstc->nvcsw, itv),
 				  S_VALUE(pstp->nivcsw, pstc->nivcsw, itv));
 		}
+                t_nvcsw += S_VALUE(pstp->nvcsw, pstc->nvcsw, itv);
+                t_nivcsw += S_VALUE(pstp->nivcsw, pstc->nivcsw, itv);
+
 
 		if (DISPLAY_KTAB(actflag)) {
 			cprintf_u64(-1, 1, 7,
@@ -1531,6 +1565,16 @@ int write_pid_task_all_stats(int prev, int curr, int dis,
 		print_comm(pstc);
 		again = 1;
 	}
+	printf("%11ld %25s", time(NULL), "Total");
+	cprintf_pc(5, 7, 2, u_total, s_totoal, g_total, w_total, cpu_total);
+	cprintf_in(IS_STR, "   %3s", "", ' ');
+	cprintf_f(-1, 2, 9, 2, t_minflt, t_majflt);
+	cprintf_in(IS_STR, "   %13s", "", ' ');
+	cprintf_pc(1, 6, 2, t_mem);
+	cprintf_f(DISPLAY_UNIT(pidflag) ? 1 : -1, 3, 9, 2, t_rd, t_wr, t_cwr);
+	cprintf_u64(-1, 1, 7, t_delay);
+	cprintf_f(-1, 2, 9, 2, t_nvcsw, t_nivcsw);
+        printf("\n");
 
 	return again;
 }
@@ -1634,7 +1678,7 @@ int write_pid_task_cpu_stats(int prev, int curr, int dis, int disp_avg,
 	struct pid_stats *pstc, *pstp;
 	unsigned int p;
 	int again = 0;
-        unsigned long long u_total = 0, s_totoal = 0, g_total = 0, w_total = 0, cpu_total = 0;
+        double u_total = 0.0, s_totoal = 0.0, g_total = 0.0, w_total = 0.0, cpu_total = 0.0;
 
 	if (dis) {
 		PRINT_ID_HDR(prev_string, pidflag);
