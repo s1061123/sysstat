@@ -1567,10 +1567,10 @@ int write_pid_task_all_stats(int prev, int curr, int dis,
 	}
 	printf("%11ld %25s", time(NULL), "Total");
 	cprintf_pc(5, 7, 2, u_total, s_totoal, g_total, w_total, cpu_total);
-	cprintf_in(IS_STR, "   %3s", "", ' ');
+	cprintf_in(IS_INT, "   %3d", "", 0);
 	cprintf_f(-1, 2, 9, 2, t_minflt, t_majflt);
-	cprintf_in(IS_STR, "   %13s", "", ' ');
-	cprintf_pc(1, 6, 2, t_mem);
+	cprintf_u64(DISPLAY_UNIT(pidflag) ? 2 : -1, 2, 7, 0, 0);
+	cprintf_pc(1, 6, 2, 0.0);
 	cprintf_f(DISPLAY_UNIT(pidflag) ? 1 : -1, 3, 9, 2, t_rd, t_wr, t_cwr);
 	cprintf_u64(-1, 1, 7, t_delay);
 	cprintf_f(-1, 2, 9, 2, t_nvcsw, t_nivcsw);
