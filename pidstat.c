@@ -1565,7 +1565,10 @@ int write_pid_task_all_stats(int prev, int curr, int dis,
 		print_comm(pstc);
 		again = 1;
 	}
-	printf("%11ld %25s", time(NULL), "Total");
+	printf("%11ld", time(NULL));
+	cprintf_s(IS_STR, " %5s", "Total");
+	printf(" %9u %9u", 0, 0);
+
 	cprintf_pc(5, 7, 2, u_total, s_totoal, g_total, w_total, cpu_total);
 	cprintf_in(IS_INT, "   %3d", "", 0);
 	cprintf_f(-1, 2, 9, 2, t_minflt, t_majflt);
@@ -1735,7 +1738,9 @@ int write_pid_task_cpu_stats(int prev, int curr, int dis, int disp_avg,
 		print_comm(pstc);
 		again = 1;
 	}
-	printf("%-11s %25s", curr_string, "Total");
+	printf("%-11s", curr_string);
+	cprintf_s(IS_STR, " %5s", "Total");
+	printf(" %9u %9u", 0, 0);
 	cprintf_pc(5, 7, 2, u_total, s_totoal, g_total, w_total, cpu_total);
         printf("\n");
 
