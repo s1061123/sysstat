@@ -1437,15 +1437,17 @@ int write_pid_task_all_stats(int prev, int curr, int dis,
 
 	for (p = 0; p < pid_nr; p++) {
 
-		if (get_pid_to_display(prev, curr, p, actflag, P_TASK,
-				       &pstc, &pstp) <= 0)
-			continue;
+		int p_result;
+		p_result = get_pid_to_display(prev, curr, p, actflag, P_TASK, &pstc, &pstp);
+
                 //XXX
                 if (xxx_check_pid != -1) {
                     if (xxx_check_pid != pstc->pid && xxx_check_pid != pstc->ppid) {
                         continue;
                     }
-                }
+                } else {
+			if (p_result <= 0) continue;
+		}
 
 		printf("%11ld", (long) time(NULL));
 		__print_line_id(pstc, '0');
